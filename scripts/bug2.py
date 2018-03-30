@@ -3,7 +3,7 @@ import rospy
 from std_msgs.msg import String
 from mavros_msgs.srv import SetMode
 from mavros_msgs.msg import OverrideRCIn
-from widaq.msg import bug2
+from roverto.msg import bug2
 import time
 
 
@@ -11,11 +11,11 @@ rospy.init_node('bug2', anonymous=True)
 throttle_channel=3
 steer_channel=4
 
-def bug2():
-	pub=rospy.Publisher('rcout', motorrcout, queue_size=1)
+def bug2main():
+	pub=rospy.Publisher('rcout', bug2, queue_size=1)
 	rate=rospy.Rate(10)
 
-	msg=motorrcout()
+	msg=bug2()
 	msg.forward=0
 	msg.reverse=0
 	msg.spinright=0
@@ -27,4 +27,4 @@ def bug2():
 
 
 if __name__=='__main__':
-	bug2()	
+	bug2main()	

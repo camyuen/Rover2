@@ -3,7 +3,7 @@ from std_msgs.msg import Float32
 from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
-from widaq.msg import widaq
+from roverto.msg import widaq
 import rospy
 import pexpect
 import time
@@ -13,7 +13,7 @@ orientation_x=32
 orientation_y=32
 orientation_z=32
 orientation_w=32
-
+odom=69
 def pulldata():
     import pexpect
     import time
@@ -42,8 +42,8 @@ def pulldata():
 
     child.sendline("char-write-cmd 27 01")      #enable sensors
     time.sleep(0.5)
-    #child.expect("", timeout=None)
-    #time.sleep(0.5)
+    child.expect("", timeout=None)
+    time.sleep(0.5)
     child.sendline("char-read-hnd 24")            
     time.sleep(1)
     child.expect("Characteristic value/descriptor: ", timeout=None)
@@ -51,21 +51,21 @@ def pulldata():
     #if (child.before == ):
     child.expect("\r\n", timeout=None)
 
-    data = [float(hexStrToInt(child.before[0:5])-1983), float(hexStrToInt(child.before[12:17])-1983), float(hexStrToInt(child.before[24:29])-1983), float(hexStrToInt(child.before[36:41])-1983)] 
-    #print val
+    data = [float(hexStrToInt(child.before[0:5])-198), float(hexStrToInt(child.before[12:17])-198), float(hexStrToInt(child.before[24:29])-198), float(hexStrToInt(child.before[36:41])-198)] 
+    print val
     print("got past data")    
-    child.sendline("disconnect")
-    child.expect("\r\n", timeout=None)
-    child.expect(" Invalid file descriptor.\r\n", timeout=None)
-    child.expect("\r\n", timeout=None)
-    child.sendline("exit")
-    child.expect("\r\n", timeout=None)
+    #child.sendline("disconnect")
+    #child.expect("\r\n", timeout=None)
+    #child.expect(" Invalid file descriptor.\r\n", timeout=None)
+    #child.expect("\r\n", timeout=None)
+    #child.sendline("exit")
+    #child.expect("\r\n", timeout=None)
     print data                                   
     return data
 
 def hexStrToInt(hexstr):
 	global val
-	val = int(hexstr[0:2],16) + int(hexstr[3:5],16)
+	val = int(hexstr[0:2],16) - int(hexstr[3:5],16)
         if ((val&0x8000)==0x8000): # treat signed 16bits
         	val = -((val^0xffff)+1)
         return val
@@ -74,9 +74,10 @@ def hexStrToInt(hexstr):
 def callback0(data):
 	rospy.loginfo(rospy.get_caller_id() +"\nposition:\nx: [{}]\ny: [{}]\nz: [{}]". 
         format(data.pose.pose.position.x, data.pose.pose.position.y, data.pose.pose.position.z))
-	msg.positionx = data.pose.pose.position.x
-	msg.positiony = data.pose.pose.position.y
-	
+	positionx = data.pose.pose.position.x
+	positiony = data.pose.pose.position.y
+	odom.pose.pose.position.x = positionx 
+ 	odom.pose.pose.position.y = positiony  
 
 def callback(data):
 	rospy.loginfo(rospy.get_caller_id() + "\norientation:\nx: [{}]\ny: [{}]\nz: [{}]\nw: [{}]".
@@ -99,21 +100,25 @@ def yaw_calc():
 	return yaw
 
 def widaq_publish():
-	#rospy.init_node('widaq_data')
+	
 	pub=rospy.Publisher('widaq_data', widaq, queue_size=1)
 	pub1=rospy.Publisher('toggle_widaq', Empty, queue_size=1)
+	pub2=rospy.Publisher('widaq_data_odometry', Odometry, queue_size=1)   
 	rospy.init_node('widaq_data')
 	rospy.Subscriber("/mavros/imu/data", Imu, callback)
 	rospy.Subscriber("/mavros/global_position/local",Odometry ,callback0)
 	rate=rospy.Rate(10)
 	msg=widaq()
+	odom= Odometry()
 	while not rospy.is_shutdown():
 		global data
+		global odom
 		global widaq0
                 global widaq1
                 global widaq2
                 global widaq3
 		msg.yaw = yaw_calc()
+		odom.pose.pose.position.z=yaw_calc()
 		time.sleep(5)
 		#pub1.publish()
 		#time.sleep(1)
@@ -125,8 +130,12 @@ def widaq_publish():
 		msg.widaq1 = float(data[1])
 		msg.widaq2 = float(data[2])
 		msg.widaq3 = float(data[3])
+		odom.twist.twist.linear.x = float(data[0])
+		odom.twist.twist.linear.y = float(data[1])
+		odom.twist.twist.linear.z = float(data[2])
+		odom.twist.twist.angular.x = float(data[3])   
 		pub.publish(msg)
-		
+		pub2.publish(odom)
 
 
 if __name__=='__main__':
