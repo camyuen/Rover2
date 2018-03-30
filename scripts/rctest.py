@@ -19,8 +19,8 @@ try:
 except rospy.ServiceException as e:
  print ("Service call failed: %s" %e)
 
-throttle_channel=3
-steer_channel=4
+throttle_channel=4
+steer_channel=3
 
 def talker():
  pub = rospy.Publisher('mavros/rc/override', OverrideRCIn, queue_size=10)

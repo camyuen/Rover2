@@ -4,26 +4,28 @@ import time
 from std_msgs.msg import String
 from mavros_msgs.srv import SetMode
 from mavros_msgs.msg import OverrideRCIn
+from roverto.msg import bug2
 
 rospy.init_node('MotorForward', anonymous=True)
-throttle_channel=3
-steer_channel=4
-SPEED=1700 #pwm for forward
+throttle_channel=2
+steer_channel=3
+SPEED=1800 #pwm for forward
+throttle=0
 def talker():
 	pub = rospy.Publisher('mavros/rc/override', OverrideRCIn, queue_size=10)
-	rospy.Subscriber("rcout",motorrcout ,callback)
+	rospy.Subscriber("rcout",bug2 ,callback)
 	
 	r = rospy.Rate(10) #10hzx
-	
-	if (throttle==1):
-		msg = OverrideRCIn()
-		msg.channels[throttle_channel]=SPEED
-		rospy.loginfo(msg)
-		pub.publish(msg)
+	while not rospy.is_shutdown():
+		if (throttle==1):
+			msg = OverrideRCIn()
+			msg.channels[throttle_channel]=SPEED
+			rospy.loginfo(msg)
+			pub.publish(msg)
 
 def callback(data):
 	global throttle
-	throttle=data.motorrcout.forward
+	throttle=data.forward
 
 
 

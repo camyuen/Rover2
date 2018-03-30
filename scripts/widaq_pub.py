@@ -51,7 +51,7 @@ def pulldata():
     #if (child.before == ):
     child.expect("\r\n", timeout=None)
 
-    data = [float(hexStrToInt(child.before[0:5])-198), float(hexStrToInt(child.before[12:17])-198), float(hexStrToInt(child.before[24:29])-198), float(hexStrToInt(child.before[36:41])-198)] 
+    data = [float(subtract_hex_strings(child.before[:2], child.before[24:26]) - 198), float(subtract_hex_strings(child.before[6:8], child.before[30:32]) - 198), float(subtract_hex_strings(child.before[12:14], child.before[36:38]) - 198), float(subtract_hex_strings(child.before[18:20], child.before[42:44]) - 198)] 
     print val
     print("got past data")    
     #child.sendline("disconnect")
@@ -63,21 +63,26 @@ def pulldata():
     print data                                   
     return data
 
-def hexStrToInt(hexstr):
-	global val
-	val = int(hexstr[0:2],16) - int(hexstr[3:5],16)
-        if ((val&0x8000)==0x8000): # treat signed 16bits
-        	val = -((val^0xffff)+1)
-        return val
+#def hexStrToInt(hexstr):
+#	global val
+#	val = int(hexstr[0:2],16) - int(hexstr[3:5],16)
+ #       if ((val&0x8000)==0x8000): # treat signed 16bits
+  #      	val = -((val^0xffff)+1)
+   #     return val
 
+def subtract_hex_strings(x, y):
+  x = int(x, 16)
+  y = int(y, 16)
+  val = x - y
+  return val
 
 def callback0(data):
 	rospy.loginfo(rospy.get_caller_id() +"\nposition:\nx: [{}]\ny: [{}]\nz: [{}]". 
         format(data.pose.pose.position.x, data.pose.pose.position.y, data.pose.pose.position.z))
 	positionx = data.pose.pose.position.x
 	positiony = data.pose.pose.position.y
-	odom.pose.pose.position.x = positionx 
- 	odom.pose.pose.position.y = positiony  
+	msg.pose.pose.position.x = positionx 
+ 	msg.pose.pose.position.y = positiony  
 
 def callback(data):
 	rospy.loginfo(rospy.get_caller_id() + "\norientation:\nx: [{}]\ny: [{}]\nz: [{}]\nw: [{}]".
@@ -86,10 +91,10 @@ def callback(data):
 	global orientation_y
 	global orientation_z
 	global orientation_w
-	orientation_x = float(data.orientation.x)
-	orientation_y = float(data.orientation.y)
-	orientation_z = float(data.orientation.z)
-	orientation_w = float(data.orientation.w)
+	msg.pose.pose.orientation.x = float(data.orientation.x)
+	msg.pose.pose.orientation.y = float(data.orientation.y)
+	msg.pose.pose.orientation.z = float(data.orientation.z)
+	msg.pose.pose.orientation.z = float(data.orientation.w)
 
 def yaw_calc():
 	global t3
@@ -100,42 +105,42 @@ def yaw_calc():
 	return yaw
 
 def widaq_publish():
-	
-	pub=rospy.Publisher('widaq_data', widaq, queue_size=1)
+	global msg
+	#pub=rospy.Publisher('widaq_data', widaq, queue_size=1)
 	pub1=rospy.Publisher('toggle_widaq', Empty, queue_size=1)
 	pub2=rospy.Publisher('widaq_data_odometry', Odometry, queue_size=1)   
 	rospy.init_node('widaq_data')
 	rospy.Subscriber("/mavros/imu/data", Imu, callback)
 	rospy.Subscriber("/mavros/global_position/local",Odometry ,callback0)
 	rate=rospy.Rate(10)
-	msg=widaq()
-	odom= Odometry()
+	#msg=widaq()
+	msg = Odometry()
 	while not rospy.is_shutdown():
 		global data
-		global odom
+		#global odom
 		global widaq0
                 global widaq1
                 global widaq2
                 global widaq3
-		msg.yaw = yaw_calc()
-		odom.pose.pose.position.z=yaw_calc()
+		#msg.yaw = yaw_calc()
+		msg.pose.pose.position.z=yaw_calc()
 		time.sleep(5)
 		#pub1.publish()
-		#time.sleep(1)
-		msg.yaw = yaw_calc()
+		time.sleep(1)
+		#msg.yaw = yaw_calc()
 		pub1.publish()
 		time.sleep(1)
 		data = pulldata()
-		msg.widaq0 = float(data[0])
-		msg.widaq1 = float(data[1])
-		msg.widaq2 = float(data[2])
-		msg.widaq3 = float(data[3])
-		odom.twist.twist.linear.x = float(data[0])
-		odom.twist.twist.linear.y = float(data[1])
-		odom.twist.twist.linear.z = float(data[2])
-		odom.twist.twist.angular.x = float(data[3])   
-		pub.publish(msg)
-		pub2.publish(odom)
+		#msg.widaq0 = float(data[0])
+		#msg.widaq1 = float(data[1])
+		#msg.widaq2 = float(data[2])
+		#msg.widaq3 = float(data[3])
+		msg.twist.twist.linear.x = float(data[0])
+		msg.twist.twist.linear.y = float(data[1])
+		msg.twist.twist.linear.z = float(data[2])
+		msg.twist.twist.angular.x = float(data[3])   
+		#pub.publish(msg)
+		pub2.publish(msg)
 
 
 if __name__=='__main__':

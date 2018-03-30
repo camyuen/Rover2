@@ -16,7 +16,7 @@ def bug2main():
 	rate=rospy.Rate(10)
 
 	msg=bug2()
-	msg.forward=0
+	msg.forward=1
 	msg.reverse=0
 	msg.spinright=0
 	msg.spinleft=0
