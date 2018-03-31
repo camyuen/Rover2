@@ -3,14 +3,18 @@
 import rospy
 
 from std_msgs.msg import Float32
+from mavros_msgs.srv import SetMode
+from mavros_msgs.msg import OverrideRCIn
+
 
 IR0=None
 IR1=None
 IR2=None
 IR3=None
 IR4=None
-threshold=69
-
+threshold1=30
+threshold2=40
+threshold3=30
 
 def fnc_callback0(range_msg0):
     global IR0
@@ -46,17 +50,19 @@ if __name__=='__main__':
     while not rospy.is_shutdown():
 	global threshold
 	threshold = 40
-        if IR0<= threshold:
+      
+        if IR1<= threshold1:
             collision_detected=1
-        if IR1<= threshold:
+        if IR2<= threshold2:
             collision_detected=1
-        if IR2<= threshold:
-            collision_detected=1
-	if IR3<= threshold:
+	if IR3<= threshold3:
 	    collision_detected=1
-	if IR4<= threshold:
-            collision_detected=1
 	else:
 	    collision_detected=0
 	pub.publish(collision_detected)
+
+#	if collision_detected=1:
+#		rospy.wait_for_service('/mavros/set_mode')
+#		change_mode = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+#		resp1 = change_mode(custom_mode='manual')
 	rate.sleep()

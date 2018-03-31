@@ -17,11 +17,11 @@ def bug2main():
 
 	msg=bug2()
 	msg.forward=1
-	msg.reverse=0
-	msg.spinright=0
-	msg.spinleft=0
-	msg.turnright=0
-	msg.turnleft=0
+	msg.reverse=1
+	msg.spinright=1
+	msg.spinleft=1
+	msg.turnright=1
+	msg.turnleft=1
 	while not rospy.is_shutdown():
 		pub.publish(msg)
 
