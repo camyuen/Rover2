@@ -15,7 +15,7 @@ IR4=None
 threshold1=30
 threshold2=40
 threshold3=30
-
+collision_detected=0
 def fnc_callback0(range_msg0):
     global IR0
     IR0 =range_msg0.data
@@ -50,16 +50,34 @@ if __name__=='__main__':
     while not rospy.is_shutdown():
 	global threshold
 	threshold = 40
+	
+
+	print ("\nrangesensors:\n0: [{}]\n1: [{}]\n2: [{}]\n3: [{}]\n4: [{}]".
+	format(IR0, IR1, IR2, IR3, IR4))
+
       
-        if IR1<= threshold1:
-            collision_detected=1
-        if IR2<= threshold2:
-            collision_detected=1
-	if IR3<= threshold3:
-	    collision_detected=1
-	else:
-	    collision_detected=0
+	while (IR2<= threshold2 or IR1<=threshold1 or IR3<=threshold3):
+		collision_detected = 1
+		pub.publish(collision_detected)
+	else: 
+		collision_detected=0
+
+
+        #if not IR1<= threshold1:
+        #    collision_detected=0
+        #if not IR2<= threshold2:
+        #    collision_detected=0
+	#if not IR3<= threshold3:
+	#   collision_detected=0
+	#else:
+	#    collision_detected=1
 	pub.publish(collision_detected)
+
+	#print ("\nrangesensors:\n0: [{}]\n1: [{}]\n2: [{}]\n3: [{}]\n4: [{}]ncollision: {[]}".
+	#format(IR0, IR1, IR2, IR3, IR4, collision_detected))
+
+
+
 
 #	if collision_detected=1:
 #		rospy.wait_for_service('/mavros/set_mode')

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   nav_msgs
+  mavros_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -75,6 +76,7 @@ find_package(catkin REQUIRED COMPONENTS
    DEPENDENCIES
    std_msgs
    nav_msgs
+   mavros_msgs
  )
 
 ################################################
