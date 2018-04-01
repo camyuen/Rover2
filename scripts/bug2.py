@@ -21,6 +21,7 @@ def callback(data):
 def bug2main():
 	pub=rospy.Publisher('rcout', bug2, queue_size=1)
 	sub=rospy.Subscriber('collision_detected', Float32, callback) 
+	
 	rate=rospy.Rate(10)
 	
 	msg=bug2()

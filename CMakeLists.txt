@@ -55,6 +55,7 @@ find_package(catkin REQUIRED COMPONENTS
    widaq.msg
    collision_detected.msg
    bug2.msg
+   ir_array.msg
  )
 
 ## Generate services in the 'srv' folder
