@@ -50,8 +50,8 @@ def pulldata():
     print("fuck")
     #if (child.before == ):
     child.expect("\r\n", timeout=None)
-
-    data = [float(subtract_hex_strings(child.before[:2], child.before[24:26]) - 198), float(subtract_hex_strings(child.before[6:8], child.before[30:32]) - 198), float(subtract_hex_strings(child.before[12:14], child.before[36:38]) - 198), float(subtract_hex_strings(child.before[18:20], child.before[42:44]) - 198)] 
+    data = [float(hexStrToInt(child.before[0:5])-1983), float(hexStrToInt(child.before[12:17])-1983), float(hexStrToInt(child.before[24:29])-1983), float(hexStrToInt(child.before[36:41])-1983)]	
+   # data = [float(subtract_hex_strings(child.before[:2], child.before[3:5]) - 1981), float(subtract_hex_strings(child.before[12:14], child.before[15:17]) - 1981), float(subtract_hex_strings(child.before[24:26], child.before[27:29]) - 1981), float(subtract_hex_strings(child.before[36:38], child.before[39:41]) - 1981)] 
     print val
     print("got past data")    
     #child.sendline("disconnect")
@@ -63,18 +63,18 @@ def pulldata():
     print data                                   
     return data
 
-#def hexStrToInt(hexstr):
-#	global val
-#	val = int(hexstr[0:2],16) - int(hexstr[3:5],16)
- #       if ((val&0x8000)==0x8000): # treat signed 16bits
-  #      	val = -((val^0xffff)+1)
-   #     return val
+def hexStrToInt(hexstr):
+	global val
+	val = int(hexstr[0:2],16) - int(hexstr[3:5],16)
+       if ((val&0x8000)==0x8000): # treat signed 16bits
+        	val = -((val^0xffff)+1)
+        return val
 
-def subtract_hex_strings(x, y):
-  x = int(x, 16)
-  y = int(y, 16)
-  val = x - y
-  return val
+#def subtract_hex_strings(x, y):
+#  x = int(x, 16)
+#  y = int(y, 16)
+#  val = x - y
+ # return val
 
 def callback0(data):
 	rospy.loginfo(rospy.get_caller_id() +"\nposition:\nx: [{}]\ny: [{}]\nz: [{}]". 
@@ -91,10 +91,10 @@ def callback(data):
 	global orientation_y
 	global orientation_z
 	global orientation_w
-	msg.pose.pose.orientation.x = float(data.orientation.x)
-	msg.pose.pose.orientation.y = float(data.orientation.y)
-	msg.pose.pose.orientation.z = float(data.orientation.z)
-	msg.pose.pose.orientation.z = float(data.orientation.w)
+	orientation_x= data.orientation.x
+	orientation_y= data.orientation.y
+	orientation_z= data.orientation.z
+	orientation_w= data.orientation.z
 
 def yaw_calc():
 	global t3
@@ -135,10 +135,10 @@ def widaq_publish():
 		#msg.widaq1 = float(data[1])
 		#msg.widaq2 = float(data[2])
 		#msg.widaq3 = float(data[3])
-		msg.twist.twist.linear.x = float(data[0])
-		msg.twist.twist.linear.y = float(data[1])
-		msg.twist.twist.linear.z = float(data[2])
-		msg.twist.twist.angular.x = float(data[3])   
+		msg.pose.pose.orientation.x = float(data[0])
+		msg.pose.pose.orinetation.y = float(data[1])
+		msg.pose.pose.orientation.z = float(data[2])
+		msg.pose.pose.orientation.z = float(data[3])   
 		#pub.publish(msg)
 		pub2.publish(msg)
 

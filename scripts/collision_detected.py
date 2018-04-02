@@ -7,11 +7,14 @@ from mavros_msgs.srv import SetMode
 from mavros_msgs.msg import OverrideRCIn
 from roverto.msg import ir_array
 
-IR0=415
-IR1=415
-IR2=415
-IR3=415
-IR4=415
+IR0
+IR1
+IR2
+IR3
+IR4
+BUMP0
+BUMP1
+
 threshold1=30
 threshold2=40
 threshold3=30
@@ -31,6 +34,13 @@ def fnc_callback3(range_msg3):
 def fnc_callback4(range_msg4):
     global IR4
     IR4 =range_msg4.data
+def fnc_callback5(bump_msg0):
+    global BUMP0
+    BUMP1 =bump_msg0.data
+
+def fnc_callback4(bump_msg1):
+    global BUMP1
+    BUMP1 =bump_msg1.data
 
 
 
@@ -38,11 +48,15 @@ def fnc_callback4(range_msg4):
 if __name__=='__main__':
     rospy.init_node('collision_detected')
 
-    sub=rospy.Subscriber('range0', Float32, fnc_callback0)
-    sub=rospy.Subscriber('range1', Float32, fnc_callback1)
-    sub=rospy.Subscriber('range2', Float32, fnc_callback2)
-    sub=rospy.Subscriber('range3', Float32, fnc_callback3)
-    sub=rospy.Subscriber('range4', Float32, fnc_callback4)
+    sub0=rospy.Subscriber('range0', Float32, fnc_callback0)
+    sub1=rospy.Subscriber('range1', Float32, fnc_callback1)
+    sub2=rospy.Subscriber('range2', Float32, fnc_callback2)
+    sub3=rospy.Subscriber('range3', Float32, fnc_callback3)
+    sub4=rospy.Subscriber('range4', Float32, fnc_callback4)
+    sub5=rospy.Subscriber('bump0', Float32, fnc_callback5)
+    sub6=rospy.Subscriber('bump1', Float32, fnc_callback6)
+
+
 
     pub=rospy.Publisher('collision_detected', Float32, queue_size=1)
     pub1=rospy.Publisher('ir_array', ir_array, queue_size=1)
@@ -60,23 +74,18 @@ if __name__=='__main__':
 	msg.IR2=IR2
         msg.IR3=IR3
 	msg.IR4=IR4
-      
-	while (IR2<= threshold2 or IR1<=threshold1 or IR3<=threshold3):
+	msg.BUMP0=BUMP0
+	msg.BUMP1=BUMP1    
+	while (IR2<= threshold2 or IR1<=threshold1 or IR3<=threshold3 or BUMP0==1 or BUMP1==1):
 		collision_detected = 1
 		pub.publish(collision_detected)
 	else: 
 		collision_detected=0
+		pub.publish(collision_detected)
 
 	pub1.publish(msg)
-        #if not IR1<= threshold1:
-        #    collision_detected=0
-        #if not IR2<= threshold2:
-        #    collision_detected=0
-	#if not IR3<= threshold3:
-	#   collision_detected=0
-	#else:
-	#    collision_detected=1
-	pub.publish(collision_detected)
+        
+	#pub.publish(collision_detected)
 
 	#print ("\nrangesensors:\n0: [{}]\n1: [{}]\n2: [{}]\n3: [{}]\n4: [{}]ncollision: {[]}".
 	#format(IR0, IR1, IR2, IR3, IR4, collision_detected))
