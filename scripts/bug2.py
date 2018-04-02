@@ -11,14 +11,17 @@ import time
 
 
 
-IR0=415
-IR1=415
-IR2=415
-IR3=415
-IR4=415
-BUMP0=0
-BUMP1=0
+sensor_fornt=415
+sensor_right=415
+sensor_left=415
+sensor_right_corner=415
+sensor_left_corner=415
+bump_sensor_right=0
+bump_sensor_left=0
 collision_detected=0
+
+
+
 
 
 sensor_front_detection = 69.0 # change values after testing to find thresholds
@@ -36,7 +39,7 @@ tolerance_angle = 5.0 # angle of tolerance for wall following (rover will only c
 
 
 
-rospy.init_node('bug2', anonymous=True)
+
 throttle_channel=3
 steer_channel=4
 
@@ -46,13 +49,13 @@ def callback(data):
 	collision_detected = data.data
 
 def callback0(data):
-  global IR0
-  global IR1
-  global IR2
-  global IR3
-  global IR4
-  global BUMP0
-  global BUMP1
+  global sensor_left
+  global sensor_left_corner
+  global sensor_front
+  global sensor_right_corner
+  global sensor_right
+  global bump_sensor_left
+  global bump_sensor_right
   sensor_left=data.IR0
   sensor_left_corner=data.IR1
   sensor_front=data.IR2
@@ -63,8 +66,9 @@ def callback0(data):
 
 
 def bug2main():
+	rospy.init_node('bug2')
 	pub=rospy.Publisher('rcout', bug2, queue_size=1)
-	sub=rospy.Subscriber('collision_detected', Float32, callback) 
+	sub=rospy.Subscriber('collision_detected', Float32, callback)
 	sub1=rospy.Subscriber('ir_array', ir_array, callback0)
 	rate=rospy.Rate(10)
 
@@ -80,19 +84,19 @@ def bug2main():
 
 	while not rospy.is_shutdown():###this is the in main function that will constantly run
 		#this shit turns it to manuel mode when we hit something
-		if(collision_detected ==1):
-		  set_mode_manual()
+		if collision_detected == 1:
+                  set_mode_manual()
 		for retry in range(10):
-    		  test = right_or_left()
-                  if test != "error":
-                    break
+                  test = right_or_left()
 		if test == "error":
    		  test = "right"
 		if test == "right":
- 		   turn_right_wall_detected()
+ 		  turn_right_wall_detected()
 		elif test == "left":
-		    turn_left_wall_detected()
-		go_straight_three_seconds()
+		  turn_left_wall_detected()
+		motor_forward()
+                time.sleep(3)
+                motor_stop()
 		main_code(test, 0)
 
 
@@ -134,7 +138,7 @@ def turn_right_wall_detected():
         while sensor_left >= sensor_min_reading:
             pass
         motor_stop()
-    turn_to_parallel_leftwall()
+    turn_to_parallel_left_initial()
     return
 
 # Function: turn_left_wall_detected
@@ -154,16 +158,18 @@ def turn_left_wall_detected():
         while sensor_right >= sensor_min_reading:
             pass
         motor_stop()
-    turn_to_parallel_rightwall()
+    turn_to_parallel_right_initial()
     return
 
 # Function: go_straight_three_seconds
 # Purpose: Turn the motors straight for three seconds
 # Parameters: N/A
 def go_straight_three_seconds():
+    check_trigger()
     motor_forward()
     time.sleep(3)
     motor_stop()
+    check_trigger()
     return
 
 # Function: right_or_left
@@ -176,18 +182,51 @@ def right_or_left():
     elif sensor_right_corner < sensor_left_corner:
         return "left"
     else:
-        return "error"		
+        return "error"
 
+def turn_to_parallel_left_initial():
+    motor_stop()
+    c_equiv = sensor_left_corner * math.cos(math.radians(30.0))
+    if c_equiv > sensor_left:
+        motor_spin_left()
+        while sensor_left_corner * math.cos(math.radians(30.0)) > sensor_left:
+            pass
+    elif c_equiv < sensor_left:
+        motor_spin_right()
+        while sensor_left_corner * math.cos(math.radians(30.0)) < sensor_left:
+            pass
+    motor_stop()
+    return
 
+def turn_to_parallel_right_initial():
+    motor_stop()
+    c_equiv = sensor_right_corner * math.cos(math.radians(30.0))
+    if c_equiv > sensor_right:
+        motor_spin_right()
+        while sensor_right_corner * math.cos(math.radians(30.0)) > sensor_right:
+            pass
+    elif c_equiv < sensor_right:
+        motor_spin_left()
+        while sensor_right_corner * math.cos(math.radians(30.0)) < sensor_right:
+            pass
+    motor_stop()
+    return
+
+def check_trigger():
+    if m_line_trigger == 1:
+        end_bug()
+    return
 # ********** WALL FOLLOWING ON LEFT **********
 
 # Function: wall_following_wall_on_left
 # Purpose: Follow a wall when the left side of the rover is facing the wall
 # Parameters: N/A
 def wall_following_wall_on_left():
+    check_trigger()
     while sensor_front > sensor_front_detection and bump_sensor_right < bump_sensor_trigger and bump_sensor_left < bump_sensor_trigger:
         while sensor_left < sensor_min_reading and sensor_left_corner < sensor_min_reading: # aka the left and left corner sensor reads that there is a wall
             motor_forward()
+            check_trigger()
             c_equiv = sensor_left_corner * math.cos(math.radians(30.0))
             if sensor_left > c_equiv:
                 if sensor_left_corner < (sensor_left * math.cos(math.radians(tolerance_angle)) - 12.0 * math.sin(math.radians(tolerance_angle))) / math.cos(math.radians(30.0 - tolerance_angle)):
@@ -196,21 +235,22 @@ def wall_following_wall_on_left():
                 if sensor_left_corner > (sensor_left * math.cos(math.radians(tolerance_angle)) + 12.0 * math.sin(math.radians(tolerance_angle))) / math.cos(math.radians(30.0 + tolerance_angle)):
                     turn_to_parallel_leftwall()
             motor_forward()
-            if sensor_min_l - dist_center_to_sensor < sensor_left < sensor_max_l - dist_center_to_sensor:
-                # Go Straight or break
-                break
-            elif sensor_left > sensor_max_l - dist_center_to_sensor:
+            check_trigger()
+            mix = sensor_left
+            if sensor_min_l - dist_center_to_sensor < mix < sensor_max_l - dist_center_to_sensor:
+                pass
+            elif mix > sensor_max_l - dist_center_to_sensor:
+                check_trigger()
                 turn_to_parallel_leftwall()
                 turn_left_towards_wall()
                 go_straight_until_center_leftwall("toward")
                 turn_to_parallel_leftwall()
-                break
-            elif sensor_left < sensor_min_l - dist_center_to_sensor:
+            elif mix < sensor_min_l - dist_center_to_sensor:
                 turn_to_parallel_leftwall()
                 turn_right_away_from_wall()
                 go_straight_until_center_leftwall("away")
                 turn_to_parallel_leftwall()
-                break
+        check_trigger()
         motor_stop()
         if sensor_left < sensor_min_reading < sensor_left_corner:
             l_dist_maintain = sensor_left
@@ -218,6 +258,7 @@ def wall_following_wall_on_left():
         go_straight_and_corner_left()
         go_straight_until_detection_left()
         wall_following_wall_on_left()
+    check_trigger()
     motor_stop()
     if sensor_front < sensor_front_detection or bump_sensor_right > bump_sensor_trigger or bump_sensor_left > bump_sensor_trigger:
         if bump_sensor_right > bump_sensor_trigger or bump_sensor_left > bump_sensor_trigger: # Maybe change up code later to take in corner sensor data
@@ -232,18 +273,18 @@ def wall_following_wall_on_left():
 
 def turn_to_parallel_leftwall():
     motor_stop()
+    check_trigger()
     c_equiv = sensor_left_corner * math.cos(math.radians(30.0))
     if c_equiv > sensor_left:
         motor_spin_left()
         while sensor_left_corner * math.cos(math.radians(30.0)) > sensor_left:
             pass
-        break
     elif c_equiv < sensor_left:
         motor_spin_right()
         while sensor_left_corner * math.cos(math.radians(30.0)) < sensor_left:
             pass
-        break
     motor_stop()
+    check_trigger()
     return
 
 
@@ -252,23 +293,22 @@ def turn_to_parallel_leftwall():
 # Parameters: N/A
 # Notes: parameter angle can be changed at top of code
 def turn_left_towards_wall():
+    check_trigger()
     dist = sensor_left
-    test = "yes"
     if dist < sensor_max_l - dist_center_to_sensor:
         return
     c_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) - 14.5 * math.sin(math.radians(angle))) / math.cos(math.radians(30.0 - angle))
     l_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) - 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
     motor_spin_left()
     while sensor_left < l_desired:
-        if sensor_left > sensor_min_reading:
-            motor_stop()
-            test = "miss"
-            break
-    if test == "miss":
+        check_trigger()
+    if sensor_left > sensor_min_reading:
+        motor_stop()
         motor_spin_left()
         while sensor_left_corner > c_desired:
             pass
     motor_stop()
+    check_trigger()
     return
 
 
@@ -278,13 +318,14 @@ def turn_left_towards_wall():
 # Parameters: N/A
 # Notes: parameter angle can be changed at top of code
 def turn_right_away_from_wall():
+    check_trigger()
     dist = sensor_left
     if dist > sensor_min_l:
         return
     l_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) + 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
     motor_spin_right()
     while sensor_left < l_desired:
-        pass
+        check_trigger()
     motor_stop()
     return
 
@@ -295,26 +336,19 @@ def turn_right_away_from_wall():
 # Parameters: direction, either "toward" or "away"
 # Notes: sensor_min_l and sensor_max_l can be changed at top of code
 def go_straight_until_center_leftwall(direction):
-    test = "yes"
+    check_trigger()
     if direction == "toward":
-        c_desired = (0.5 * (sensor_min_l + sensor_max_l) - 12.0 * math.cos(math.radians(angle)) - 14.5 * math.sin(math.radians(angle))) / math.cos(math.radians(30.0 - angle))
         l_desired = (0.5 * (sensor_min_l + sensor_max_l) - 12.0 * math.cos(math.radians(angle)) - 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
         motor_forward()
         while sensor_left > l_desired:
-            if sensor_left > sensor_min_reading:
-                motor_stop()
-                test = "miss"
-                break
-        if test == "miss":
-            motor_forward()
-            while sensor_left_corner > c_desired:
-                pass
+            check_trigger()
     elif direction == "away":
         l_desired = (0.5 * (sensor_min_l + sensor_max_l) - 12.0 * math.cos(math.radians(angle)) + 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
         motor_forward()
         while sensor_left < l_desired:
-            pass
+            check_trigger()
     motor_stop()
+    check_trigger()
     return
 
 
@@ -323,33 +357,39 @@ def go_straight_until_center_leftwall(direction):
 # Purpose: Rover is near end of a wall and left corner sensor no longer detects so this program maintains left sensor distance and goes straight until wall cleared
 # Parameters: dist, the distance of the left sensor when function called
 def go_straight_only_left_sensor(dist):
+    check_trigger()
     if sensor_left < sensor_min_reading:
         motor_forward()
         while dist - 2 < sensor_left < dist + 2:
-            pass
+            check_trigger()
         if dist + 2 < sensor_left < sensor_min_reading:
+            motor_stop()
             motor_spin_left()
             time.sleep(1)
             motor_stop()
             go_straight_only_left_sensor(dist)
         elif sensor_left < dist - 2:
+            motor_stop()
             motor_spin_right()
             time.sleep(1)
             motor_stop()
             go_straight_only_left_sensor(dist)
     motor_stop()
+    check_trigger()
     return
 
 # Function: go_straight_and_corner_left
 # Purpose: Left sensor clears the wall and this function moves the rover straight a little bit and turns around corner
 # Parameters: N/A
 def go_straight_and_corner_left():
+    check_trigger()
     motor_forward()
     time.sleep(2)
+    check_trigger()
     motor_stop()
     motor_spin_left()
     while sensor_left_corner >= sensor_min_reading:
-        pass
+        check_trigger()
     motor_stop()
     return
 
@@ -357,22 +397,24 @@ def go_straight_and_corner_left():
 # Purpose: Make rover go straight until left sensor detects wall (and go straight for a small distance after detection)
 # Parameters: N/A
 def go_straight_until_detection_left():
+    check_trigger()
     motor_forward()
     while sensor_left >= sensor_min_reading:
-        pass # Motors keep turning until wall detected
-    time.sleep(0.5) # Motors keep turning for half a second after the wall is detected
+        check_trigger()
+    time.sleep(0.5)
     motor_stop()
     if sensor_left_corner >= sensor_min_reading:
         motor_spin_left()
         while sensor_left_corner >= sensor_min_reading:
-            pass
+            check_trigger()
         motor_stop()
         if sensor_left >= sensor_min_reading:
             motor_spin_right()
             while sensor_left >= sensor_min_reading:
-                pass
+                check_trigger()
             time.sleep(0.5)
             motor_stop()
+    check_trigger()
     return
 # ********** WALL FOLLOWING ON RIGHT **********
 
@@ -380,8 +422,10 @@ def go_straight_until_detection_left():
 # Purpose: Follow a wall when the right side of the rover is facing the wall
 # Parameters: N/A
 def wall_following_wall_on_right():
+    check_trigger()
     while sensor_front > sensor_front_detection and bump_sensor_right < bump_sensor_trigger and bump_sensor_left < bump_sensor_trigger:
         while sensor_right < sensor_min_reading and sensor_right_corner < sensor_min_reading: # aka the right and right corner sensor reads that there is a wall
+            check_trigger()
             motor_forward()
             c_equiv = sensor_right_corner * math.cos(math.radians(30.0))
             if sensor_right > c_equiv:
@@ -390,23 +434,27 @@ def wall_following_wall_on_right():
             elif sensor_right < c_equiv:
                 if sensor_right_corner > (sensor_right * math.cos(math.radians(tolerance_angle)) + 12.0 * math.sin(math.radians(tolerance_angle))) / math.cos(math.radians(30.0 + tolerance_angle)):
                     turn_to_parallel_leftwall()
+            check_trigger()
             motor_forward()
-            if sensor_min_r - dist_center_to_sensor < sensor_right < sensor_max_r - dist_center_to_sensor:
-                # Go Straight or break
-                break
-            elif sensor_right > sensor_max_r - dist_center_to_sensor:
+            dumby = sensor_right
+            if sensor_min_r - dist_center_to_sensor < dumby < sensor_max_r - dist_center_to_sensor:
+                check_trigger()
+            elif dumby > sensor_max_r - dist_center_to_sensor:
+                check_trigger()
                 turn_to_parallel_rightwall()
                 turn_right_towards_wall()
                 go_straight_until_center_rightwall("toward")
                 turn_to_parallel_rightwall()
-                break
-            elif sensor_right < sensor_min_r - dist_center_to_sensor:
+                check_trigger()
+            elif dumby < sensor_min_r - dist_center_to_sensor:
+                check_trigger()
                 turn_to_parallel_rightwall()
                 turn_left_away_from_wall()
                 go_straight_until_center_rightwall("away")
                 turn_to_parallel_rightwall()
-                break
+                check_trigger()
         motor_stop()
+        check_trigger()
         if sensor_right < sensor_min_reading < sensor_right_corner:
             r_dist_maintain = sensor_right
             go_straight_only_right_sensor(r_dist_maintain)
@@ -414,6 +462,7 @@ def wall_following_wall_on_right():
         go_straight_until_detection_right()
         wall_following_wall_on_right()
     motor_stop()
+    check_trigger()
     if sensor_front < sensor_front_detection or bump_sensor_right > bump_sensor_trigger or bump_sensor_left > bump_sensor_trigger:
         if bump_sensor_right > bump_sensor_trigger or bump_sensor_left > bump_sensor_trigger: # Maybe change up code later to take in corner sensor data
             motor_reverse()
@@ -428,19 +477,19 @@ def wall_following_wall_on_right():
 # Purpose: This function moves the rover parallel to the wall when the wall is on the right
 # Parameters: N/A
 def turn_to_parallel_rightwall():
+    check_trigger()
     motor_stop()
     c_equiv = sensor_right_corner * math.cos(math.radians(30.0))
-    if c_equiv > sensor_right: # ***** Add Tolerances *****
+    if c_equiv > sensor_right:
         motor_spin_right()
         while sensor_right_corner * math.cos(math.radians(30.0)) > sensor_right:
-            pass
-        break
-    elif c_equiv < sensor_right: # ***** Add Tolerances *****
+            check_trigger()
+    elif c_equiv < sensor_right:
         motor_spin_left()
         while sensor_right_corner * math.cos(math.radians(30.0)) < sensor_right:
-            pass
-        break
+            check_trigger()
     motor_stop()
+    check_trigger()
     return
 
 # Function: turn_right_towards_wall
@@ -448,23 +497,22 @@ def turn_to_parallel_rightwall():
 # Parameters: N/A
 # Notes: parameter angle can be changed at top of code
 def turn_right_towards_wall():
+    check_trigger()
     dist = sensor_right
-    test = "yes"
     if dist < sensor_max_r - dist_center_to_sensor:
         return
     c_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) - 14.5 * math.sin(math.radians(angle))) / math.cos(math.radians(30.0 - angle))
     r_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) - 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
     motor_spin_right()
     while sensor_right < r_desired:
-        if sensor_right > sensor_min_reading:
-            motor_stop()
-            test = "miss"
-            break
-    if test == "miss":
+        check_trigger()
+    if sensor_right > sensor_min_reading:
+        motor_stop()
         motor_spin_right()
         while sensor_right_corner > c_desired:
-            pass
+            check_trigger()
     motor_stop()
+    check_trigger()
     return
 
 # Function: turn_left_away_from_wall
@@ -472,13 +520,14 @@ def turn_right_towards_wall():
 # Parameters: N/A
 # Notes: parameter angle can be changed at top of code
 def turn_left_away_from_wall():
+    check_trigger()
     dist = sensor_right
     if dist > sensor_min_r - dist_center_to_sensor:
         return
     r_desired = (dist + dist_center_to_sensor - 12.0 * math.cos(math.radians(angle)) + 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
     motor_spin_left()
     while sensor_right < r_desired:
-        pass
+        check_trigger()
     motor_stop()
     return
 
@@ -487,16 +536,17 @@ def turn_left_away_from_wall():
 # Parameters: direction, either "toward" or "away"
 # Notes: sensor_min_r and sensor_max_r can be changed at top of code
 def go_straight_until_center_rightwall(direction):
+    check_trigger()
     if direction == "toward":
         r_desired = (0.5 * (sensor_min_r + sensor_max_r) - 12.0 * math.cos(math.radians(angle)) - 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
         motor_forward()
         while sensor_right > r_desired:
-            pass
+            check_trigger()
     elif direction == "away":
         r_desired = (0.5 * (sensor_min_r + sensor_max_r) - 12.0 * math.cos(math.radians(angle)) + 2.5 * math.sin(math.radians(angle))) / math.cos(math.radians(angle))
         motor_forward()
         while sensor_right < r_desired:
-            pass
+            check_trigger()
     motor_stop()
     return
 
@@ -504,10 +554,11 @@ def go_straight_until_center_rightwall(direction):
 # Purpose: Rover is near end of a wall and right corner sensor no longer detects so this program maintains right sensor distance and goes straight until wall cleared
 # Parameters: dist, the distance of the right sensor when function called
 def go_straight_only_right_sensor(dist):
+    check_trigger()
     if sensor_right < sensor_min_reading:
         motor_forward()
         while dist - 2 < sensor_right < dist + 2:
-            pass
+            check_trigger()
         if dist + 2 < sensor_right < sensor_min_reading:
             motor_spin_right()
             time.sleep(1)
@@ -525,12 +576,14 @@ def go_straight_only_right_sensor(dist):
 # Purpose: Right sensor cleared the wall and this function moves the rover straight a little bit and turns around corner
 # Parameters: N/A
 def go_straight_and_corner_right():
+    check_trigger()
     motor_forward()
     time.sleep(2)
+    check_trigger()
     motor_stop()
-    motor_spin_right() # ********** test for time delay, Turn 90 degrees
+    motor_spin_right()
     while sensor_right_corner >= sensor_min_reading:
-        pass
+        check_trigger()
     motor_stop()
     return
 
@@ -538,22 +591,24 @@ def go_straight_and_corner_right():
 # Purpose: Make rover go straight until right sensor detects wall (and go straight for a small distance after detection)
 # Parameters: N/A
 def go_straight_until_detection_right():
+    check_trigger()
     motor_forward()
     while sensor_right >= sensor_min_reading:
-        pass # Motors keep turning until wall detected
-    time.sleep(0.5) # Motors keep turning for half a second after the wall is detected
+        check_trigger()
+    time.sleep(0.5)
     motor_stop()
     if sensor_right_corner >= sensor_min_reading:
         motor_spin_right()
         while sensor_right_corner >= sensor_min_reading:
-            pass
+            check_trigger()
         motor_stop()
         if sensor_right >= sensor_min_reading:
             motor_spin_left()
             while sensor_right >= sensor_min_reading:
-                pass
+                check_trigger()
             time.sleep(0.5)
             motor_stop()
+    check_trigger()
     return
 
 
@@ -564,21 +619,21 @@ def set_mode_manual():
   rospy.wait_for_service('/mavros/set_mode')
   try:
     change_mode = rospy.ServiceProxy('/mavros/set_mode', SetMode)
-    mode='MANUAL'  
-    resp1 = change_mode(0,mode)    
-  except rospy.ServiceException as e:    
-    print ("Service call failed: %s" %e)      
-  pub.publish(msg)  
+    mode='MANUAL'
+    resp1 = change_mode(0,mode)
+  except rospy.ServiceException as e:
+    print ("Service call failed: %s" %e)
+  pub.publish(msg)
 
 def end_bug():
-  rospy.wait_for_service('/mavros/set_mode') 
-  try:  
-    change_mode = rospy.ServiceProxy('/mavros/set_mode', SetMode) 
+  rospy.wait_for_service('/mavros/set_mode')
+  try:
+    change_mode = rospy.ServiceProxy('/mavros/set_mode', SetMode)
     mode='AUTO'
-    resp1 = change_mode(0,mode)   
-  except rospy.ServiceException as e:   
-    print ("Service call failed: %s" %e) 
-  pub.publish(msg)     
+    resp1 = change_mode(0,mode)
+  except rospy.ServiceException as e:
+    print ("Service call failed: %s" %e)
+  pub.publish(msg)
   collision_detected=0
 
 
@@ -592,30 +647,44 @@ def end_bug():
 
 ###function to use motors
 def motor_forward():
+  pub=rospy.Publisher('rcout', bug2, queue_size=1) 
+  msg=bug2()
   msg.forward=1
   pub.publish(msg)
 
 def motor_reverse():
+  pub=rospy.Publisher('rcout', bug2, queue_size=1) 
+  msg=bug2()
   msg.reverse=1()
   pub.publish(msg)
 
 def motor_spin_right():
-  msg.spin_right=1
+  pub=rospy.Publisher('rcout', bug2, queue_size=1) 
+  msg=bug2()
+  msg.spinright=1
   pub.publish(msg)
 
 def motor_spin_left():
-  msg.spin_left=1
+  pub=rospy.Publisher('rcout', bug2, queue_size=1)
+  msg=bug2()
+  msg.spinleft=1
   pub.publish(msg)
 
 def motor_turn_right():
+  pub=rospy.Publisher('rcout', bug2, queue_size=1)
+  msg=bug2()
   msg.turn_right=1
   pub.publish(msg)
 
 def motor_turn_left():
-  msg.turn_left=1
+  pub=rospy.Publisher('rcout', bug2, queue_size=1)
+  msg=bug2()  
+  msg.turnleft=1
   pub.publish(msg)
 
 def motor_stop():
+  pub=rospy.Publisher('rcout', bug2, queue_size=1)
+  msg=bug2()  
   msg.forward=0
   msg.reverse=0
   msg.spinright=0
@@ -625,5 +694,5 @@ def motor_stop():
   pub.publish(msg)
 
 if __name__=='__main__':
-  bug2()
+  bug2main()
 

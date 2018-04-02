@@ -55,9 +55,10 @@ def mline():
   rospy.Subscriber("/mavros/mission/waypoints",Waypoint, callback)
   rospy.Subscriber("/mavros/global_position/local", NavSatFix, callback1)
   rospy.Subscriber("/collision_detected", Float32, callback2)
-
+  
   rospy.init_node('widaq_data')
-  pub=rospy.Publisher('m_line_or_nah', Float32, queue_size=1)
+  pub1=rospy.Publisher('m_line_trigger', Float32, queue_size=1)
+  
   rate=rospy.Rate(10)
 
   reset=0
@@ -65,18 +66,24 @@ def mline():
 
 
   while not rospy.is_shutdown():
+    
     if (reset==0, collision_detected==1):
       slope=get_slope(m_line_a, m_line_b)
       intercept=get_intercept(m_line_a, slope)
       reset=1
+      m_line_trigger=0
 
     m_line=on_m_line(m_line_a, slope, intercept)
 
-    if (m_line==0): 
-      pub.publish(m_line)
+    
     if (m_line==1):
-      pub.publish(m_line)
+      m_line_trigger=1  
       reset=0
+      
+      
+    pub1.publish(m_line_trigger)
+    
+
 
 if __name__=='__main__':
   mline()
