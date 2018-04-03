@@ -37,7 +37,7 @@ def pulldata():
     print(DEVICE),
     time.sleep(0.3)
     child.sendline("connect {0}".format(DEVICE))
-    time.sleep(1)
+    time.sleep(0.3)
     child.expect("Connection successful", timeout=10)
     print(" Connected!")
     # Digiscan
@@ -62,12 +62,7 @@ def pulldata():
     #child.expect("\r\n", timeout=None)
     #child.sendline("exit")
     #child.expect("\r\n", timeout=None)
-    print data
-    print data
-    print data
-    print data
-    print data
-    print data                           
+    print data                                   
     return data
 
 def hexStrToInt(hexstr):
@@ -133,11 +128,11 @@ def widaq_publish():
                 global widaq3
 		#msg.yaw = yaw_calc()
 		#msg.pose.pose.position.z=yaw_calc()
-		time.sleep(1)
+		time.sleep(2)
 		pub1.publish()
-		time.sleep(5)
+		time.sleep(1)
 		#msg.yaw = yaw_calc()
-		#pub1.publish()
+		pub1.publish()
 		time.sleep(1)
 		#fuck = [69,69,420,420]
 		fuck = pulldata()
@@ -154,8 +149,10 @@ def widaq_publish():
 		pub.publish(odom)
 		#pub.publish(widaq_data_odometry)
 
+pub1=rospy.Publisher('toggle_widaq', Empty, queue_size=1)
+rospy.init_node('widaq_data')
+pub1.publish()     #restarts widaq
 
-widaq_publish()
 if __name__=='__main__':
 	widaq_publish()
 
